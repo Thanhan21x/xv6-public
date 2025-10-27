@@ -23,6 +23,9 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+int getreadcount(void); // new system call wrapper: getreadcount
+int trace(const char*);  // new system call wrapper: trace
+int getcount(void);     // get trace count
 
 // ulib.c
 int stat(const char*, struct stat*);

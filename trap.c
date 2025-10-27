@@ -14,13 +14,22 @@ extern uint vectors[];  // in vectors.S: array of 256 entry pointers
 struct spinlock tickslock;
 uint ticks;
 
+// trap vectors initializer
 void
 tvinit(void)
 {
   int i;
 
   for(i = 0; i < 256; i++)
+    // set up all 256 gates 
+    // 0 -> for an interrupts gate
+    // SEG_KCODE << 3 -> code segment selector
+    // 0 -> dpl of level 0 (kernel)
     SETGATE(idt[i], 0, SEG_KCODE<<3, vectors[i], 0);
+  // set up the trap system call
+  // 1 -> trap (= exeption) gate
+  // vector[T_SYSCALL] -> offset in code segment for trap handler
+  // DPL_USER -> user level privilge
   SETGATE(idt[T_SYSCALL], 1, SEG_KCODE<<3, vectors[T_SYSCALL], DPL_USER);
 
   initlock(&tickslock, "time");

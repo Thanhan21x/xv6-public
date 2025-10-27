@@ -7,10 +7,20 @@
 # memory at physical address 0x7c00 and starts executing in real mode
 # with %cs=0 %ip=7c00.
 
+# This is the boot loader -> used to load the OS
+# processor -> real mode (16-bit) -> protected mode (32-bit)
+
+# This can be compile seperately from the kernel,
+# which will be compiled seperately from all the 
+# user-space programs.
+
+# Eventually, boot loader and kernel will be stored on the same boot disk together,
+# and the user-space programs will be on a seperate disk that holds the file systems.
+
 .code16                       # Assemble for 16-bit mode
 .globl start
 start:
-  cli                         # BIOS enabled interrupts; disable
+  cli                         # BIOS enabled interrupts; disable; a.k.a clear interrupts
 
   # Zero data segment registers DS, ES, and SS.
   xorw    %ax,%ax             # Set %ax to zero
@@ -39,7 +49,7 @@ seta20.2:
   # Switch from real to protected mode.  Use a bootstrap GDT that makes
   # virtual addresses map directly to physical addresses so that the
   # effective memory map doesn't change during the transition.
-  lgdt    gdtdesc
+  lgdt    gdtdesc       # load gdt 
   movl    %cr0, %eax
   orl     $CR0_PE, %eax
   movl    %eax, %cr0

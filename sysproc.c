@@ -89,3 +89,10 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+// return how many times the read system call is called
+int 
+sys_getreadcount(void)
+{
+  return myproc()->readcount;
+}

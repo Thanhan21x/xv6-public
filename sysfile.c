@@ -52,6 +52,36 @@ fdalloc(struct file *f)
   return -1;
 }
 
+// Record the pathname into some known location
+char trace_pathname[256];
+int trace_enable = 0;
+int trace_count = 0; 
+
+int
+sys_trace(void)
+{
+  // add the pathname to the above
+  char* path;
+  if(argstr(0, &path) < 0) 
+    return -1; // failt to take the argstr
+
+  safestrcpy(trace_pathname, path, sizeof(trace_pathname));
+  trace_enable = 1;
+  trace_count = 0;
+  return 0;
+}
+
+int 
+sys_getcount(void)
+{
+  if (trace_enable == 0) {
+    cprintf("No file being traces\n");
+    return 0;
+  }
+  cprintf("File: %s\n", trace_pathname);
+  return trace_count;
+}
+
 int
 sys_dup(void)
 {
@@ -69,6 +99,10 @@ sys_dup(void)
 int
 sys_read(void)
 {
+  // increment the per-process state readcount
+  // every time this this system call is caller
+  myproc()->readcount++;
+ 
   struct file *f;
   int n;
   char *p;
@@ -294,6 +328,13 @@ sys_open(void)
     return -1;
 
   begin_op();
+
+  // if (path == trace_pathname)
+  // then: trace_count++;
+  if (strncmp(path, trace_pathname, sizeof(trace_pathname)) == 0) {
+    trace_count++;
+  }
+
 
   if(omode & O_CREATE){
     ip = create(path, T_FILE, 0, 0);

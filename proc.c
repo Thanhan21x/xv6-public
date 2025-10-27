@@ -87,6 +87,8 @@ allocproc(void)
 
 found:
   p->state = EMBRYO;
+  // initialize the readcount value:
+  p->readcount = 0;
   p->pid = nextpid++;
 
   release(&ptable.lock);
