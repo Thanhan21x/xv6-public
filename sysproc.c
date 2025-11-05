@@ -96,3 +96,22 @@ sys_getreadcount(void)
 {
   return myproc()->readcount;
 }
+
+// Sets the number of tickets of the calling process
+// By default, each process should get one ticket;
+// calling this routine makes it such that a process 
+// can raise the number of tickets it receives,
+// and thus receive a higher proportion of CPU cycles.
+//
+// Return 1 if successful, and -1 otherwise
+int 
+sys_settickets(void)
+{
+  return 1;
+}
+
+int
+sys_getpinfo(void)
+{
+  return 1;
+}

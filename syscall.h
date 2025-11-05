@@ -24,3 +24,6 @@
 #define SYS_getreadcount 22
 #define SYS_trace  23
 #define SYS_getcount 24
+// loterry-scheduler syscalls
+#define SYS_settickets 25
+#define SYS_getpinfo 26

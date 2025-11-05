@@ -94,25 +94,25 @@ found:
   release(&ptable.lock);
 
   // Allocate kernel stack.
-  if((p->kstack = kalloc()) == 0){
+  if((p->kstack = kalloc()) == 0){ // p point to the startting address of the kernel stack
     p->state = UNUSED;
     return 0;
   }
-  sp = p->kstack + KSTACKSIZE;
+  sp = p->kstack + KSTACKSIZE; // sp now point to the max. addr. of the kstack
 
   // Leave room for trap frame.
-  sp -= sizeof *p->tf;
-  p->tf = (struct trapframe*)sp;
+  sp -= sizeof *p->tf; // move down a size of trap frame bytes
+  p->tf = (struct trapframe*)sp; // and here comes the addr. of the trapframe
 
   // Set up new context to start executing at forkret,
   // which returns to trapret.
-  sp -= 4;
-  *(uint*)sp = (uint)trapret;
+  sp -= 4; // down 4 bytes from the trap frame address -> trapret addr.
+  *(uint*)sp = (uint)trapret; // convert is to a pointer to trapret? 
 
-  sp -= sizeof *p->context;
+  sp -= sizeof *p->context; // leave room for context
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
-  p->context->eip = (uint)forkret;
+  p->context->eip = (uint)forkret; // cause the kernel thread to execute at the start of forkret
 
   return p;
 }

@@ -1,5 +1,6 @@
 struct stat;
 struct rtcdate;
+struct pstat;
 
 // system calls
 int fork(void);
@@ -23,9 +24,12 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
-int getreadcount(void); // new system call wrapper: getreadcount
-int trace(const char*);  // new system call wrapper: trace
+int getreadcount(void); // get the # of times read() syscall is called
+int trace(const char*);  // trace the number of times a file is opened
 int getcount(void);     // get trace count
+// lottery-scheduler related system calls
+int settickets(int number); // sets the number of tickets of the calling process.
+int getpinfo(struct pstat *);
 
 // ulib.c
 int stat(const char*, struct stat*);
