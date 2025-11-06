@@ -104,14 +104,26 @@ sys_getreadcount(void)
 // and thus receive a higher proportion of CPU cycles.
 //
 // Return 1 if successful, and -1 otherwise
-int 
+int
 sys_settickets(void)
 {
-  return 1;
+  // get the integer argument which is 
+  // the number of tickets to assign to
+  // this process
+
+  int n; // number to tickets
+
+  if (argint(0, &n) < 0) {
+    return -1;
+  }
+
+  myproc()->tickets = n;
+
+  return 0;
 }
 
 int
 sys_getpinfo(void)
 {
-  return 1;
+  return 0;
 }

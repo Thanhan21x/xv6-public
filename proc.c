@@ -10,7 +10,7 @@
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
-} ptable;
+} ptable; // a table of processes, and a spin lock
 
 static struct proc *initproc;
 
@@ -89,12 +89,14 @@ found:
   p->state = EMBRYO;
   // initialize the readcount value:
   p->readcount = 0;
+  // initialize the default number of tickets
+  p->tickets = 10;
   p->pid = nextpid++;
 
   release(&ptable.lock);
 
   // Allocate kernel stack.
-  if((p->kstack = kalloc()) == 0){ // p point to the startting address of the kernel stack
+  if((p->kstack = kalloc()) == 0){ // p->stack point to the startting address of the kernel stack
     p->state = UNUSED;
     return 0;
   }
@@ -122,15 +124,15 @@ found:
 void
 userinit(void)
 {
-  struct proc *p;
+  struct proc *p; // a pointer to a struct proc, which is the data structure of a process -> here, the first one
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
-  p = allocproc();
+  p = allocproc(); // allocate the process 
   
   initproc = p;
-  if((p->pgdir = setupkvm()) == 0)
+  if((p->pgdir = setupkvm()) == 0) // if fail to set up kernel virtual memory
     panic("userinit: out of memory?");
-  inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size);
+  inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size); // load the init code to address 0 of pgdir
   p->sz = PGSIZE;
   memset(p->tf, 0, sizeof(*p->tf));
   p->tf->cs = (SEG_UCODE << 3) | DPL_USER;
@@ -141,7 +143,7 @@ userinit(void)
   p->tf->esp = PGSIZE;
   p->tf->eip = 0;  // beginning of initcode.S
 
-  safestrcpy(p->name, "initcode", sizeof(p->name));
+  safestrcpy(p->name, "initcode", sizeof(p->name)); // the first process named "initcode"
   p->cwd = namei("/");
 
   // this assignment to p->state lets other cores
@@ -342,10 +344,10 @@ scheduler(void)
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
       c->proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
+      switchuvm(p); // switch to the process's page table
+      p->state = RUNNING; // mark the process as RUNNING
 
-      swtch(&(c->scheduler), p->context);
+      swtch(&(c->scheduler), p->context); // call switch to run it
       switchkvm();
 
       // Process is done running for now.
@@ -370,6 +372,7 @@ sched(void)
   int intena;
   struct proc *p = myproc();
 
+  // Double check
   if(!holding(&ptable.lock))
     panic("sched ptable.lock");
   if(mycpu()->ncli != 1)
@@ -378,19 +381,24 @@ sched(void)
     panic("sched running");
   if(readeflags()&FL_IF)
     panic("sched interruptible");
-  intena = mycpu()->intena;
-  swtch(&p->context, mycpu()->scheduler);
+  intena = mycpu()->intena; // disable the intterupt ?
+  swtch(&p->context, mycpu()->scheduler); // save the current context in cpu->context,
+                                          // and switch to the scheduler context in cput->scheduler
   mycpu()->intena = intena;
 }
 
 // Give up the CPU for one scheduling round.
+// "a process that wants to give up the CPU
+// must acquire the process table lock,
+// release any other locks it is holding,
+// update its own state"
 void
 yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
-  myproc()->state = RUNNABLE;
-  sched();
-  release(&ptable.lock);
+  myproc()->state = RUNNABLE; // update its own state
+  sched(); // call sched
+  release(&ptable.lock); 
 }
 
 // A fork child's very first scheduling by scheduler()

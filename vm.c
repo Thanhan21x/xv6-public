@@ -184,7 +184,7 @@ inituvm(pde_t *pgdir, char *init, uint sz)
 {
   char *mem;
 
-  if(sz >= PGSIZE)
+  if(sz >= PGSIZE) // meaning that pgdir must fit in a page
     panic("inituvm: more than a page");
   mem = kalloc();
   memset(mem, 0, PGSIZE);
