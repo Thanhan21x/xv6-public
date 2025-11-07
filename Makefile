@@ -27,7 +27,7 @@ OBJS = \
 	uart.o\
 	vectors.o\
 	vm.o\
-	random.0\
+	random.o\
 
 # Cross-compiling (e.g., on Mac OS X)
 # TOOLPREFIX = i386-jos-elf
