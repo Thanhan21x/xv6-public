@@ -29,7 +29,8 @@ int trace(const char*);  // trace the number of times a file is opened
 int getcount(void);     // get trace count
 // lottery-scheduler related system calls
 int settickets(int number); // sets the number of tickets of the calling process.
-int getpinfo(struct pstat *);
+int getpinfo(struct pstat *); // take in pointer to a struct pstat,
+                              // which is passed from user-space prog? 
 
 // ulib.c
 int stat(const char*, struct stat*);

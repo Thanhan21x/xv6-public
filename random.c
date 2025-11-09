@@ -14,7 +14,7 @@ void init_random(uint new_seed) {
 }
 
 // Generate a random number in the range [0, n]
-uint random_in_range(uint n) {
+uint getrandom(uint n) {
     seed = (A * seed + C) % M; // Update the seed using LCG
     return seed % (n + 1); // Return a number in the range [0, n]
 }

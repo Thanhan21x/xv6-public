@@ -10,7 +10,7 @@
 void init_random(uint new_seed);
 
 // Generate a random number in the range [0, n]
-uint random_in_range(uint n);
+uint getrandom(uint n);
 
 
 #endif

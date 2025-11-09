@@ -107,6 +107,8 @@ extern int sys_uptime(void);
 extern int sys_getreadcount(void); // extern the function call from sysproc.c
 extern int sys_trace(void);
 extern int sys_getcount(void);
+extern int sys_settickets(void);
+extern int sys_getpinfo(void);
 
 // an array of fucntion pointers, to the system call functions
 static int (*syscalls[])(void) = {
@@ -134,6 +136,8 @@ static int (*syscalls[])(void) = {
 [SYS_getreadcount] sys_getreadcount, // the new system call here
 [SYS_trace]    sys_trace,
 [SYS_getcount] sys_getcount,
+[SYS_settickets] sys_settickets,
+[SYS_getpinfo] sys_getpinfo,
 };
 
 void

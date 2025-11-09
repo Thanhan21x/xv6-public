@@ -6,6 +6,9 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
+#include "pstat.h"
+
+extern int getpinfo(struct pstat*);
 
 int
 sys_fork(void)
@@ -125,5 +128,14 @@ sys_settickets(void)
 int
 sys_getpinfo(void)
 {
-  return 0;
+  // get the argument which is pass in to here (the kernel -> this function)
+  struct pstat *ps;
+
+  if(argptr(0, (void*)&ps, sizeof(*ps)) < 0) {
+    cprintf("sys_getpinfo failes\n");
+    return -1; // fail
+  }
+  //cprintf("ps = %d\n", ps);
+
+  return getpinfo(ps);
 }

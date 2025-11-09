@@ -6,8 +6,8 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
-
 #include "random.h"
+#include "pstat.h"
 
 struct {
   struct spinlock lock;
@@ -92,8 +92,10 @@ found:
   // initialize the readcount value:
   p->readcount = 0;
   // initialize the default number of tickets
-  p->tickets = 10;
   p->pid = nextpid++;
+  
+  p->tickets = 100; // first process has 100 tickets
+  p->ticks = 0;
 
   release(&ptable.lock);
 
@@ -205,6 +207,9 @@ fork(void)
   np->sz = curproc->sz;
   np->parent = curproc;
   *np->tf = *curproc->tf;
+  // new process have the same number of tickets as current process
+  np->tickets = curproc->tickets;
+  cprintf("np's tickets: %d\n", np->tickets);
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
@@ -317,6 +322,26 @@ wait(void)
   }
 }
 
+// helper function to get the total number of tickets of runnable process
+int get_totaltickets(){
+  struct proc* p;
+  int totaltickets = 0;
+
+  acquire(&ptable.lock);
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    if (p->state != RUNNABLE)
+      continue;
+
+    totaltickets += p->tickets;
+  }
+  release(&ptable.lock);
+
+  // Debug message
+  //cprintf("totaltickets = %d", totaltickets);
+
+  return totaltickets;
+}
+
 //PAGEBREAK: 42
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
@@ -325,72 +350,92 @@ wait(void)
 //  - swtch to start running that process
 //  - eventually that process transfers control
 //      via swtch back to the scheduler.
-
-void scheduler(void) {
-    struct proc *p;
-    struct cpu *c = mycpu();
-    c->proc = 0;
-
-    int total_tickets, winning_ticket, ticket_sum;
-
-    for (;;) {
-        // Enable interrupts on this processor.
-        sti();
-
-        // Initialize total tickets for this iteration
-        total_tickets = 0;
-
-        // First pass: Calculate total tickets and find a process to run
-        acquire(&ptable.lock); // Acquire the lock before accessing process table
-
-        // Loop over process table
-        for (ticket_sum = 0, p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-            if (p->state == RUNNABLE) {
-                total_tickets += p->tickets; // Count total tickets
-
-                // Randomly select a ticket if we've accumulated enough
-                if (total_tickets > 0) {
-                    // Generate a random ticket number if we have runnable processes
-                    winning_ticket = random_in_range(total_tickets) + 1;
-
-                    // Check if this process is selected by the winning ticket
-                    ticket_sum += p->tickets;
-                    if (ticket_sum >= winning_ticket) {
-                        // Switch to chosen process
-                        c->proc = p;
-                        switchuvm(p);
-                        p->state = RUNNING; // Mark as RUNNING
-                        
-                        swtch(&(c->scheduler), p->context); // Call switch to run it
-                        switchkvm();
-
-                        // Reset the current process to NULL after it finishes running
-                        c->proc = 0;
-                        break; // Exit the loop after scheduling a process
-                    }
-                }
-            }
-        }
-
-        release(&ptable.lock); // Release lock after processing
-    }
-}
-
-
-// total no. of tickets of processes available with RUNNABLE state
-int 
-total_runnable_tickets(void)
+void
+scheduler(void)
 {
   struct proc *p;
-  int runnable_tickets_sum=0;
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-  {
-    if(p->state == RUNNABLE)
-      { 
-        runnable_tickets_sum += p->tickets;
+  struct cpu *c = mycpu();
+  c->proc = 0;
+  for(;;){
+
+    // Enable interrupts on this processor.
+    sti();
+
+    // counter: used to track if we've found the winner yet
+    int counter = 0;
+
+    // total number of RUNNABLE processes' tickets
+    int totaltickets = get_totaltickets();
+
+    // winner: use some call to a random number generator 
+    // to get a value >= 0 and <= (totaltickets -1)
+
+
+    // current: use this to walk though the list of job
+    // -> here we have the `struct proc *p` already
+  
+    // Loop over process table looking for process to run.
+    acquire(&ptable.lock);
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->state != RUNNABLE)
+        continue;
+
+      counter += p->tickets;
+
+      int winner =  getrandom(totaltickets);
+
+      //cprintf("totaltickets: %d\n", totaltickets);
+
+      
+      // if counter > winner -> found
+      if (counter > winner) {       
+        // Switch to chosen process.  It is the process's job
+        // to release ptable.lock and then reacquire it
+        // before jumping back to us.
+        c->proc = p;
+        switchuvm(p); // switch to the process's page table
+        p->state = RUNNING; // mark the process as RUNNING
+
+        swtch(&(c->scheduler), p->context); // call switch to run it
+        switchkvm();
+
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        c->proc = 0;
+        break;
       }
+    }
+    release(&ptable.lock);
+
   }
-return runnable_tickets_sum;
+}
+
+// Get processes' information
+int getpinfo(struct pstat* ps) {
+  struct proc* p; // used to iterate
+  int i = 0; // used as index
+
+  if (ps == 0) { 
+    cprintf("getinfo faled in proc.c\n");
+    return -1;
+  }
+
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if (p->state != UNUSED) {
+      ps->inuse[i] = 1; 
+    } else {
+      ps->inuse[i] = 0;
+    }
+
+    ps->tickets[i] = p->tickets;
+    ps->pid[i] = p->pid;
+    ps->tickets[i] = p->ticks;
+  }
+  release(&ptable.lock);
+
+  return 0;
+  
 }
 
 // Enter scheduler.  Must hold only ptable.lock
