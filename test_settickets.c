@@ -2,23 +2,39 @@
 #include "user.h"
 
 int main(int argc, char *argv[]) {
-  int pid1 = fork();
-  if (pid1 == 0) {
-    settickets(1);
-    while(1) {
-      printf(1, "Process 1 is running\n");
-      sleep(1000);
+  int pid = getpid();
+  printf(1, "Process %d setting tickets to 20...\n", pid);
+
+  if (settickets(20) < 0) 
+    printf(1, "settickets failed!\n");
+  else
+    printf(1, "settickets success!\n");
+
+  int child_pid = fork();
+  printf(1, "created child with pid = %d\n", child_pid);
+  if (child_pid == 0) {
+    printf(1, "child process pid: %d\n", getpid());
+    settickets(200);
+    while (1) {
+      for (int j = 0; j < 10000000000; j++) {
+        ;
+      }
+      printf(1, "child process running\n");
     }
   }
-
-  int pid2 = fork();
-  if (pid2 == 0) {
-    settickets(5000);
-    while(1) {
-      printf(1, "Process 2 is running\n");
-      sleep(1000);
+  
+  int child_pid_1 = fork();
+  printf(1, "created child with pid = %d\n", child_pid_1);
+  if (child_pid_1 == 0) {
+    printf(1, "child process pid: %d\n", getpid());
+    settickets(800);
+    while (1) {
+      for (int j = 0; j < 10000000000; j++) {
+        ;
+      }
+      printf(1, "child process 1 running\n");
     }
   }
-
-  return 0;
+ 
+  exit();
 }

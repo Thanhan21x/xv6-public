@@ -8,7 +8,8 @@
 #include "proc.h"
 #include "pstat.h"
 
-extern int getpinfo(struct pstat*);
+extern int getpinfo_proc(struct pstat*);
+extern int settickets_proc(int);
 
 int
 sys_fork(void)
@@ -119,10 +120,8 @@ sys_settickets(void)
   if (argint(0, &n) < 0) {
     return -1;
   }
+  return settickets_proc(n);
 
-  myproc()->tickets = n;
-
-  return 0;
 }
 
 int
@@ -132,10 +131,8 @@ sys_getpinfo(void)
   struct pstat *ps;
 
   if(argptr(0, (void*)&ps, sizeof(*ps)) < 0) {
-    cprintf("sys_getpinfo failes\n");
     return -1; // fail
   }
-  //cprintf("ps = %d\n", ps);
 
-  return getpinfo(ps);
+  return getpinfo_proc(ps);
 }

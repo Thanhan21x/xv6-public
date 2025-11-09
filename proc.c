@@ -120,6 +120,8 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret; // cause the kernel thread to execute at the start of forkret
 
+  cprintf("allocproc: pid %d tickets %d\n", p->pid, p->tickets);
+
   return p;
 }
 
@@ -209,7 +211,8 @@ fork(void)
   *np->tf = *curproc->tf;
   // new process have the same number of tickets as current process
   np->tickets = curproc->tickets;
-  cprintf("np's tickets: %d\n", np->tickets);
+  np->ticks = 0;
+  //cprintf("np's tickets: %d\n", np->tickets);
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
@@ -327,17 +330,10 @@ int get_totaltickets(){
   struct proc* p;
   int totaltickets = 0;
 
-  acquire(&ptable.lock);
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-    if (p->state != RUNNABLE)
-      continue;
-
-    totaltickets += p->tickets;
+    if (p->state == RUNNABLE || p->state == RUNNING || p->state == SLEEPING)
+      totaltickets += p->tickets;
   }
-  release(&ptable.lock);
-
-  // Debug message
-  //cprintf("totaltickets = %d", totaltickets);
 
   return totaltickets;
 }
@@ -361,33 +357,21 @@ scheduler(void)
     // Enable interrupts on this processor.
     sti();
 
-    // counter: used to track if we've found the winner yet
-    int counter = 0;
-
-    // total number of RUNNABLE processes' tickets
-    int totaltickets = get_totaltickets();
-
-    // winner: use some call to a random number generator 
-    // to get a value >= 0 and <= (totaltickets -1)
-
-
-    // current: use this to walk though the list of job
-    // -> here we have the `struct proc *p` already
-  
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
+    int totaltickets = get_totaltickets();
+    if (totaltickets <= 0) {
+      release(&ptable.lock);
+      continue;
+    }
+    int winner = getrandom(totaltickets);
+    int counter = 0;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
 
       counter += p->tickets;
 
-      int winner =  getrandom(totaltickets);
-
-      //cprintf("totaltickets: %d\n", totaltickets);
-
-      
-      // if counter > winner -> found
       if (counter > winner) {       
         // Switch to chosen process.  It is the process's job
         // to release ptable.lock and then reacquire it
@@ -395,6 +379,13 @@ scheduler(void)
         c->proc = p;
         switchuvm(p); // switch to the process's page table
         p->state = RUNNING; // mark the process as RUNNING
+        p->ticks ++;
+
+        /*
+        cprintf("totaltickets: %d\n", totaltickets);
+        cprintf("winner: %d\n", winner);
+        cprintf("chosen pid: %d\n", p->pid);
+        */
 
         swtch(&(c->scheduler), p->context); // call switch to run it
         switchkvm();
@@ -411,31 +402,41 @@ scheduler(void)
 }
 
 // Get processes' information
-int getpinfo(struct pstat* ps) {
-  struct proc* p; // used to iterate
-  int i = 0; // used as index
-
+int getpinfo_proc(struct pstat* ps) {
   if (ps == 0) { 
-    cprintf("getinfo faled in proc.c\n");
     return -1;
   }
 
+  struct proc* p; // used to iterate
+  int i = 0; // used as index
+
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if (p->state != UNUSED) {
-      ps->inuse[i] = 1; 
+    if (p->state == UNUSED) {
+      ps->inuse[i] = 0; 
+      ps->pid[i] = 0;
+      ps->tickets[i] = 0;
+      ps->ticks[i] = 0;
     } else {
-      ps->inuse[i] = 0;
+      ps->inuse[i] = 1;
+      ps->pid[i] = p->pid;
+      ps->tickets[i] = p->tickets;
+      ps->ticks[i] = p->ticks;
     }
+      i++;
 
-    ps->tickets[i] = p->tickets;
-    ps->pid[i] = p->pid;
-    ps->tickets[i] = p->ticks;
   }
   release(&ptable.lock);
-
   return 0;
-  
+}
+
+int settickets_proc(int n) {
+  struct proc *cur = myproc();
+  if (n < 1) return -1;
+  acquire(&ptable.lock);
+  cur->tickets = n;
+  release(&ptable.lock);
+  return 0;
 }
 
 // Enter scheduler.  Must hold only ptable.lock
